@@ -108,6 +108,8 @@
 		};
 	};
 
+#if 0
+#SGTL5000
 	sound {
 		compatible = "fsl,imx6q-sabrelite-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
@@ -121,6 +123,50 @@
 		mux-int-port = <1>;
 		mux-ext-port = <4>;
 	};
+# ADAU1781
+	sound {
+		compatible = "fsl,imx6q-sabrelite-adau1781",
+			     "fsl,imx-audio-adau1781";
+		model = "imx6q-sabrelite-adau1781";
+		cpu-dai = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"BEEP", "Beep",
+			"LMIC", "Stereo In",
+			"RMIC", "Stereo In",
+			"Headphone", "AOUTL",
+			"Headphone", "AOUTR",
+			"Speaker", "SP";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
+#else
+	sound {
+		compatible = "fsl,imx6q-sabrelite-adau1761",
+			     "fsl,imx-audio-adau1761";
+		model = "imx6q-sabrelite-adau1761";
+		cpu-dai = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"LAUX", "In 3-4",
+			"RAUX", "In 3-4",
+			"LINP", "In 1",
+			"LINN", "In 1",
+			"RINP", "In 2",
+			"RINN", "In 2",
+			"In 1", "MICBIAS",
+			"In 2", "MICBIAS",
+			"Capless HP Out", "LHP",
+			"Capless HP Out", "RHP",
+			"Diff Out L", "LOUT",
+			"Diff Out R", "ROUT",
+			"Stereo Out", "LOUT",
+			"Stereo Out", "ROUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
+#endif
+
 	sound-hdmi {
 		compatible = "fsl,imx6q-audio-hdmi",
 			     "fsl,imx-audio-hdmi";
@@ -330,7 +376,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1_1>;
 	status = "okay";
-
+#if 0
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
@@ -338,6 +384,12 @@
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
+#else
+	codec: adau1761@3a {
+		compatible = "fsl,adau1761";
+		reg = <0x3a>;
+	};
+#endif
 };
 
 &i2c2 {

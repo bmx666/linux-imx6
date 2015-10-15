@@ -1101,6 +1101,10 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
+	/* Set the default I/O up try regmap */
+	if (dev_get_regmap(codec->dev, NULL))
+		snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
+
 	if (driver->probe) {
 		ret = driver->probe(codec);
 		if (ret < 0) {
@@ -1113,10 +1117,6 @@ static int soc_probe_codec(struct snd_soc_card *card,
 			"codec %s can not start from non-off bias"
 			" with idle_bias_off==1\n", codec->name);
 	}
-
-	/* If the driver didn't set I/O up try regmap */
-	if (!codec->write && dev_get_regmap(codec->dev, NULL))
-		snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
 
 	if (driver->controls)
 		snd_soc_add_codec_controls(codec, driver->controls,
@@ -2406,12 +2406,13 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->max;
+	uinfo->value.enumerated.items = e->items;
 
-	if (uinfo->value.enumerated.item > e->max - 1)
-		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
+	if (uinfo->value.enumerated.item >= e->items)
+		uinfo->value.enumerated.item = e->items - 1;
+	strlcpy(uinfo->value.enumerated.name,
+		e->texts[uinfo->value.enumerated.item],
+		sizeof(uinfo->value.enumerated.name));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_enum_double);
@@ -2460,12 +2461,12 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	unsigned int mask;
 
-	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+	if (ucontrol->value.enumerated.item[0] >= e->items)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
 	mask = e->mask << e->shift_l;
 	if (e->shift_l != e->shift_r) {
-		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+		if (ucontrol->value.enumerated.item[1] >= e->items)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
 		mask |= e->mask << e->shift_r;
@@ -2496,14 +2497,14 @@ int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
 
 	reg_val = snd_soc_read(codec, e->reg);
 	val = (reg_val >> e->shift_l) & e->mask;
-	for (mux = 0; mux < e->max; mux++) {
+	for (mux = 0; mux < e->items; mux++) {
 		if (val == e->values[mux])
 			break;
 	}
 	ucontrol->value.enumerated.item[0] = mux;
 	if (e->shift_l != e->shift_r) {
 		val = (reg_val >> e->shift_r) & e->mask;
-		for (mux = 0; mux < e->max; mux++) {
+		for (mux = 0; mux < e->items; mux++) {
 			if (val == e->values[mux])
 				break;
 		}
@@ -2534,12 +2535,12 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	unsigned int mask;
 
-	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+	if (ucontrol->value.enumerated.item[0] >= e->items)
 		return -EINVAL;
 	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
 	mask = e->mask << e->shift_l;
 	if (e->shift_l != e->shift_r) {
-		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+		if (ucontrol->value.enumerated.item[1] >= e->items)
 			return -EINVAL;
 		val |= e->values[ucontrol->value.enumerated.item[1]] << e->shift_r;
 		mask |= e->mask << e->shift_r;
@@ -2548,59 +2549,6 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	return snd_soc_update_bits_locked(codec, e->reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_value_enum_double);
-
-/**
- * snd_soc_info_enum_ext - external enumerated single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about an external enumerated
- * single mixer.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = e->max;
-
-	if (uinfo->value.enumerated.item > e->max - 1)
-		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_enum_ext);
-
-/**
- * snd_soc_info_volsw_ext - external single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about a single external mixer control.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_volsw_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	int max = kcontrol->private_value;
-
-	if (max == 1 && !strstr(kcontrol->id.name, " Volume"))
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_volsw_ext);
 
 /**
  * snd_soc_info_volsw - single mixer info callback
