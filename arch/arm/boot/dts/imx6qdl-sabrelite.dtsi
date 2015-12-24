@@ -437,6 +437,16 @@
 		mclk_source = <0>;
 		pwms = <&pwm3 0 45>;
 	};
+
+	expander1: pca9555@20 {
+		compatible = "pca9555";
+		reg = <0x20>;
+	};
+
+	expander2: pca9555@21 {
+		compatible = "pca9555";
+		reg = <0x21>;
+	};
 };
 
 &i2c3 {
