@@ -13,14 +13,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *****************************************************************************/
 
 #include <linux/module.h>
 #include <linux/kmod.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -61,6 +59,7 @@
 #define SUSPEND_SUSPEND3		(0x08)
 #define SUSPEND_ALLMODES		(SUSPEND_SUSPEND0 | SUSPEND_SUSPEND1 | \
 					 SUSPEND_SUSPEND2 | SUSPEND_SUSPEND3)
+#define MAC_ADDR_LEN                    (6)
 
 struct smsc95xx_priv {
 	u32 mac_cr;
@@ -72,9 +71,17 @@ struct smsc95xx_priv {
 	u8 suspend_flags;
 };
 
-static bool turbo_mode = true;
+static bool turbo_mode = false;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
+
+static bool truesize_mode = false;
+module_param(truesize_mode, bool, 0644);
+MODULE_PARM_DESC(truesize_mode, "Report larger truesize value");
+
+static char *macaddr = ":";
+module_param(macaddr, charp, 0);
+MODULE_PARM_DESC(macaddr, "MAC address");
 
 static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 					    u32 *data, int in_pm)
@@ -765,6 +772,53 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
+/* Check the macaddr module parameter for a MAC address */
+static int smsc95xx_is_macaddr_param(struct usbnet *dev, u8 *dev_mac)
+{
+       int i, j, got_num, num;
+       u8 mtbl[MAC_ADDR_LEN];
+
+       if (macaddr[0] == ':')
+               return 0;
+
+       i = 0;
+       j = 0;
+       num = 0;
+       got_num = 0;
+       while (j < MAC_ADDR_LEN) {
+               if (macaddr[i] && macaddr[i] != ':') {
+                       got_num++;
+                       if ('0' <= macaddr[i] && macaddr[i] <= '9')
+                               num = num * 16 + macaddr[i] - '0';
+                       else if ('A' <= macaddr[i] && macaddr[i] <= 'F')
+                               num = num * 16 + 10 + macaddr[i] - 'A';
+                       else if ('a' <= macaddr[i] && macaddr[i] <= 'f')
+                               num = num * 16 + 10 + macaddr[i] - 'a';
+                       else
+                               break;
+                       i++;
+               } else if (got_num == 2) {
+                       mtbl[j++] = (u8) num;
+                       num = 0;
+                       got_num = 0;
+                       i++;
+               } else {
+                       break;
+               }
+       }
+
+       if (j == MAC_ADDR_LEN) {
+               netif_dbg(dev, ifup, dev->net, "Overriding MAC address with: "
+               "%02x:%02x:%02x:%02x:%02x:%02x\n", mtbl[0], mtbl[1], mtbl[2],
+                                               mtbl[3], mtbl[4], mtbl[5]);
+               for (i = 0; i < MAC_ADDR_LEN; i++)
+                       dev_mac[i] = mtbl[i];
+               return 1;
+       } else {
+               return 0;
+       }
+}
+
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
 	/* try reading mac address from EEPROM */
@@ -777,7 +831,11 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 		}
 	}
 
-	/* no eeprom, or eeprom values are invalid. generate random MAC */
+	/* Check module parameters */
+	if (smsc95xx_is_macaddr_param(dev, dev->net->dev_addr))
+		return;
+
+	/* no eeprom, or eeprom values are invalid, and no module parameter specified to set MAC. Generate random MAC */
 	eth_hw_addr_random(dev->net);
 	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");
 }
@@ -1672,12 +1730,14 @@ done:
 static int smsc95xx_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
-	u8 suspend_flags = pdata->suspend_flags;
+	struct smsc95xx_priv *pdata;
+	u8 suspend_flags;
 	int ret;
 	u32 val;
 
 	BUG_ON(!dev);
+	pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	suspend_flags = pdata->suspend_flags;
 
 	netdev_dbg(dev->net, "resume suspend_flags=0x%02x\n", suspend_flags);
 
@@ -1716,6 +1776,18 @@ static int smsc95xx_resume(struct usb_interface *intf)
 	return ret;
 }
 
+static int smsc95xx_reset_resume(struct usb_interface *intf)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	int ret;
+
+	ret = smsc95xx_reset(dev);
+	if (ret < 0)
+		return ret;
+
+	return smsc95xx_resume(intf);
+}
+
 static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 {
 	skb->csum = *(u16 *)(skb_tail_pointer(skb) - 2);
@@ -1725,6 +1797,10 @@ static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 
 static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	while (skb->len > 0) {
 		u32 header, align_count;
 		struct sk_buff *ax_skb;
@@ -1769,7 +1845,8 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				if (dev->net->features & NETIF_F_RXCSUM)
 					smsc95xx_rx_csum_offload(skb);
 				skb_trim(skb, skb->len - 4); /* remove fcs */
-				skb->truesize = size + sizeof(struct sk_buff);
+				if (truesize_mode)
+					skb->truesize = size + sizeof(struct sk_buff);
 
 				return 1;
 			}
@@ -1787,7 +1864,8 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			if (dev->net->features & NETIF_F_RXCSUM)
 				smsc95xx_rx_csum_offload(ax_skb);
 			skb_trim(ax_skb, ax_skb->len - 4); /* remove fcs */
-			ax_skb->truesize = size + sizeof(struct sk_buff);
+			if (truesize_mode)
+				ax_skb->truesize = size + sizeof(struct sk_buff);
 
 			usbnet_skb_return(dev, ax_skb);
 		}
@@ -2002,7 +2080,7 @@ static struct usb_driver smsc95xx_driver = {
 	.probe		= usbnet_probe,
 	.suspend	= smsc95xx_suspend,
 	.resume		= smsc95xx_resume,
-	.reset_resume	= smsc95xx_resume,
+	.reset_resume	= smsc95xx_reset_resume,
 	.disconnect	= usbnet_disconnect,
 	.disable_hub_initiated_lpm = 1,
 	.supports_autosuspend = 1,
