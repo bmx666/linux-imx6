@@ -68,79 +68,6 @@
 		};
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-		power {
-			label = "Power Button";
-			gpios = <&gpio2 3 0>;
-			linux,code = <KEY_POWER>;	/* or KEY_SEARCH */
-			gpio-key,wakeup;
-		};
-
-		menu {
-			label = "Menu";
-			gpios = <&gpio2 1 0>;
-			linux,code = <KEY_MENU>;
-		};
-
-		home {
-			label = "Home";
-			gpios = <&gpio2 4 0>;
-			linux,code = <KEY_HOME>;
-		};
-
-		back {
-			label = "Back";
-			gpios = <&gpio2 2 0>;
-			linux,code = <KEY_BACK>;
-		};
-
-		volume-up {
-			label = "Volume Up";
-			gpios = <&gpio7 13 0>;
-			linux,code = <KEY_VOLUMEUP>;
-		};
-
-		volume-down {
-			label = "Volume Down";
-			gpios = <&gpio4 5 0>;
-			linux,code = <KEY_VOLUMEDOWN>;
-		};
-	};
-
-#if 0
-#SGTL5000
-	sound {
-		compatible = "fsl,imx6q-sabrelite-sgtl5000",
-			     "fsl,imx-audio-sgtl5000";
-		model = "imx6q-sabrelite-sgtl5000";
-		ssi-controller = <&ssi1>;
-		audio-codec = <&codec>;
-		audio-routing =
-			"MIC_IN", "Mic Jack",
-			"Mic Jack", "Mic Bias",
-			"Headphone Jack", "HP_OUT";
-		mux-int-port = <1>;
-		mux-ext-port = <4>;
-	};
-# ADAU1781
-	sound {
-		compatible = "fsl,imx6q-sabrelite-adau1781",
-			     "fsl,imx-audio-adau1781";
-		model = "imx6q-sabrelite-adau1781";
-		cpu-dai = <&ssi1>;
-		audio-codec = <&codec>;
-		audio-routing =
-			"BEEP", "Beep",
-			"LMIC", "Stereo In",
-			"RMIC", "Stereo In",
-			"Headphone", "AOUTL",
-			"Headphone", "AOUTR",
-			"Speaker", "SP";
-		mux-int-port = <1>;
-		mux-ext-port = <4>;
-	};
-#else
 	sound {
 		compatible = "fsl,imx6q-sabrelite-adau1761",
 			     "fsl,imx-audio-adau1761";
@@ -165,7 +92,6 @@
 		mux-int-port = <1>;
 		mux-ext-port = <4>;
 	};
-#endif
 
 	sound-hdmi {
 		compatible = "fsl,imx6q-audio-hdmi",
@@ -176,15 +102,6 @@
 
 	mxcfb1: fb@0 {
 		compatible = "fsl,mxc_sdc_fb";
-#if 0
-		disp_dev = "mipi_dsi";
-		interface_pix_fmt = "RGB666";
-		mode_str ="LDB-XGA";
-		default_bpp = <16>;
-		int_clk = <0>;
-		late_init = <0>;
-		status = "disabled";
-#else
 		disp_dev = "ldb";
 		interface_pix_fmt = "RGB666";
 		mode_str ="LDB-XGA";
@@ -192,7 +109,6 @@
 		int_clk = <0>;
 		late_init = <0>;
 		status = "disabled";
-#endif
 	};
 
 	mxcfb2: fb@1 {
@@ -235,9 +151,7 @@
 		default_ifmt = "RGB565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu1_4>;
-#if 0
-		status = "okay";
-#endif
+		status = "disabled";
 	};
 
 	backlight_lcd {
@@ -277,15 +191,6 @@
 		compatible = "fsl,mxc_v4l2_output";
 		status = "okay";
 	};
-
-#if 0
-	mipi_dsi_reset: mipi-dsi-reset {
-		compatible = "gpio-reset";
-		reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
-		reset-delay-us = <50>;
-		#reset-cells = <0>;
-	};
-#endif
 };
 
 &audmux {
@@ -376,20 +281,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1_1>;
 	status = "okay";
-#if 0
-	codec: sgtl5000@0a {
-		compatible = "fsl,sgtl5000";
-		reg = <0x0a>;
-		clocks = <&clks 201>;
-		VDDA-supply = <&reg_2p5v>;
-		VDDIO-supply = <&reg_3p3v>;
-	};
-#else
+
 	codec: adau1761@3a {
 		compatible = "fsl,adau1761";
 		reg = <0x3a>;
 	};
-#endif
 };
 
 &i2c2 {
@@ -513,17 +409,18 @@
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
 				/* Power Button */
-                                MX6QDL_PAD_NANDF_D3__GPIO2_IO03         0x1b0b0
-                                /* Menu Button */
-                                MX6QDL_PAD_NANDF_D1__GPIO2_IO01         0x1b0b0
-                                /* Home Button */
-                                MX6QDL_PAD_NANDF_D4__GPIO2_IO04         0x1b0b0
-                                /* Back Button */
-                                MX6QDL_PAD_NANDF_D2__GPIO2_IO02         0x1b0b0
-                                /* Volume Up Button */
-                                MX6QDL_PAD_GPIO_18__GPIO7_IO13          0x1b0b0
-                                /* Volume Down Button */
-                                MX6QDL_PAD_GPIO_19__GPIO4_IO05          0x1b0b0
+				MX6QDL_PAD_NANDF_D3__GPIO2_IO03		0x1b0b0
+				/* Menu Button */
+				MX6QDL_PAD_NANDF_D1__GPIO2_IO01		0x1b0b0
+				/* Home Button */
+				MX6QDL_PAD_NANDF_D4__GPIO2_IO04		0x1b0b0
+				/* Back Button */
+				MX6QDL_PAD_NANDF_D2__GPIO2_IO02		0x1b0b0
+				/* Volume Up Button */
+				MX6QDL_PAD_GPIO_18__GPIO7_IO13		0x1b0b0
+				/* Volume Down Button */
+				MX6QDL_PAD_GPIO_19__GPIO4_IO05		0x1b0b0
+
 				MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x80000000	/* spi-nor CS */
 				MX6QDL_PAD_EIM_D22__GPIO3_IO22		0x80000000	/* otg power en */
 				MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x0f0b0		/* ethernet phy reset */
@@ -568,17 +465,6 @@
 	sec_disp_id = <1>;
 	status = "okay";
 };
-
-#if 0
-&mipi_dsi {
-	dev_id = <0>;
-	disp_id = <0>;
-	lcd_panel = "hitachi-1080p";
-	disp-power-on-supply = <&reg_3p3v>;
-	resets = <&mipi_dsi_reset>;
-	status = "okay";
-};
-#endif
 
 &mipi_csi {
 	lanes = <2>;
