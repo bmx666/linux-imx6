@@ -79,7 +79,7 @@
 	};
 
 	sound_sgtl5000: sound_sgtl5000 {
-		compatible = "fsl,imx6dl-nit6xlite-sgtl5000",
+		compatible = "fsl,imx6dl-lshore-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
 		model = "sgtl5000-audio";
 		cpu-dai = <&ssi1>;
@@ -113,7 +113,7 @@
 		compatible = "fsl,mxc_sdc_fb";
 		disp_dev = "lcd";
 		interface_pix_fmt = "RGB24";
-		mode_str = "okaya_480x272";
+		mode_str = "ASIT500MA6F5D";
 		default_bpp = <16>;
 		int_clk = <0>;
 		late_init = <0>;
@@ -141,18 +141,11 @@
 		status = "okay";
 	};
 
-	backlight_j7 {
-		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
-		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-		default-brightness-level = <10>;
-	};
-
 	backlight_lcd: backlight_lcd {
 		compatible = "pwm-backlight";
-		pwms = <&pwm3 0 5000000>;
-		brightness-levels = <0 70 75 80 85 90 95 100>;
-		default-brightness-level = <7>;
+		pwms = <&pwm1 0 100000>;
+		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
+		default-brightness-level = <10>;
 	};
 
 	backlight_lvds {
@@ -178,12 +171,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	iomuxc_imx6q_nit6xlite: iomuxc-imx6q-nit6xlitegrp {
+	iomuxc_imx6q_lshore: iomuxc-imx6q-lshoregrp {
 		status = "okay";
 	};
 };
 
-&iomuxc_imx6q_nit6xlite {
+&iomuxc_imx6q_lshore {
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x1b0b0		/* J28 pin 7 - barcode scanner gpio */
@@ -266,6 +259,16 @@
 #define GP_TS2004_IRQ			<&gpio2 27 IRQ_TYPE_LEVEL_LOW>
 			MX6QDL_PAD_EIM_LBA__GPIO2_IO27		0x1b0b0		/* tsc2004(I2C3) irq */
 			MX6QDL_PAD_KEY_COL2__GPIO4_IO10		0x0b0b0		/* tsc2004(I2C3) *reset */
+		>;
+	};
+
+	pinctrl_i2c3_gslx680: i2c3_gslx680grp {
+		fsl,pins = <
+#define GPIRQ_GSLX680			<&gpio1 9 IRQ_TYPE_LEVEL_HIGH>
+#define GP_GSLX680_IRQ			<&gpio1 9 GPIO_ACTIVE_HIGH>
+/*			MX6QDL_PAD_GPIO_9__GPIO1_IO09		0x130b0		*/
+#define GP_GSLX680_SHUTDOWN		<&gpio7 12 GPIO_ACTIVE_LOW>
+			MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x1b0b0
 		>;
 	};
 
@@ -600,6 +603,15 @@
 		reg = <0x38>;
 		interrupts-extended = GP_TOUCH_IRQ;
 		wakeup-gpios = GP_TOUCH_IRQ;
+	};
+	gslx680_ts@40 {
+		compatible = "gslx680";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3_gslx680>;
+		reg = <0x40>;
+		interrupts-extended = GPIRQ_GSLX680;
+		wakeup-gpios = GP_GSLX680_IRQ;
+		shutdown-gpios = GP_GSLX680_SHUTDOWN;
 	};
 	ili210x@41 {
 		compatible = "ili210x";
