@@ -26,17 +26,21 @@ struct imx_adau1761_data {
 	struct snd_soc_dai_link dai;
 	struct snd_soc_card card;
 	struct platform_device *pdev;
+	struct clk *codec_clk;
+	unsigned int clk_frequency;
 };
 
 static int imx_adau1761_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct imx_adau1761_data *data = container_of(rtd->card,
+					struct imx_adau1761_data, card);
 	struct device *dev = rtd->card->dev;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int pll_rate = 48000 * 1024;
 	int ret;
 
 	ret = snd_soc_dai_set_pll(codec_dai, ADAU17X1_PLL,
-			ADAU17X1_PLL_SRC_MCLK, 27000000, pll_rate);
+			ADAU17X1_PLL_SRC_MCLK, data->clk_frequency, pll_rate);
 	if (ret) {
 		dev_err(dev, "could not set pll\n");
 		return ret;
@@ -114,7 +118,7 @@ static int imx_adau1761_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = snd_soc_dai_set_pll(codec_dai, ADAU17X1_PLL,
-			ADAU17X1_PLL_SRC_MCLK, 27000000, pll_rate);
+			ADAU17X1_PLL_SRC_MCLK, data->clk_frequency, pll_rate);
 	if (ret)
 		return ret;
 
@@ -222,6 +226,23 @@ static int imx_adau1761_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	data->codec_clk = clk_get(&codec_dev->dev, NULL);
+	if (IS_ERR(data->codec_clk)) {
+		/* assuming clock enabled by default */
+		data->codec_clk = NULL;
+		ret = of_property_read_u32(codec_np, "clock-frequency",
+					&data->clk_frequency);
+		if (ret) {
+			dev_err(&codec_dev->dev,
+				"clock-frequency missing or invalid\n");
+			goto fail;
+		}
+	} else {
+		data->clk_frequency = clk_get_rate(data->codec_clk);
+		clk_prepare_enable(data->codec_clk);
+	}
+	dev_info(&pdev->dev, "clock-frequency = %u Hz\n", data->clk_frequency);
+
 	data->pdev = pdev;
 
 	data->dai.name = "ADAU1761";
@@ -240,10 +261,10 @@ static int imx_adau1761_probe(struct platform_device *pdev)
 	data->card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)
-		goto fail;
+		goto clk_fail;
 	ret = snd_soc_of_parse_audio_routing(&data->card, "audio-routing");
 	if (ret)
-		goto fail;
+		goto clk_fail;
 	data->card.num_links = 1;
 	data->card.owner = THIS_MODULE;
 	data->card.dai_link = &data->dai;
@@ -253,12 +274,14 @@ static int imx_adau1761_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(&data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
-		goto fail;
+		goto clk_fail;
 	}
 
 	platform_set_drvdata(pdev, &data->card);
 	snd_soc_card_set_drvdata(&data->card, data);
 
+clk_fail:
+	clk_put(data->codec_clk);
 fail:
 	if (cpu_np)
 		of_node_put(cpu_np);
@@ -272,6 +295,10 @@ static int imx_adau1761_remove(struct platform_device *pdev)
 {
 	struct imx_adau1761_data *data = platform_get_drvdata(pdev);
 
+	if (data->codec_clk) {
+		clk_disable_unprepare(data->codec_clk);
+		clk_put(data->codec_clk);
+	}
 	snd_soc_unregister_card(&data->card);
 
 	return 0;
