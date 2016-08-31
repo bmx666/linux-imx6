@@ -285,6 +285,7 @@
 	codec: adau1761@3a {
 		compatible = "fsl,adau1761";
 		reg = <0x3a>;
+		clocks = <&clks 201>;
 	};
 };
 
