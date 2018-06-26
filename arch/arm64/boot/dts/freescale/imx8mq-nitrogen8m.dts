@@ -188,18 +188,18 @@
 	pinctrl_i2c2_csi1: i2c2-csi1grp {
 		fsl,pins = <
 #define GP_CSI1_MIPI_PWDN	<&gpio3 3 GPIO_ACTIVE_HIGH>
-			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3		0x59
+			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3		0x61
 #define GP_CSI1_MIPI_RESET	<&gpio3 17 GPIO_ACTIVE_LOW>
-			MX8MQ_IOMUXC_NAND_WE_B_GPIO3_IO17		0x19
+			MX8MQ_IOMUXC_NAND_WE_B_GPIO3_IO17		0x61
 		>;
 	};
 
 	pinctrl_i2c3_csi2: i2c3-csi2grp {
 		fsl,pins = <
 #define GP_CSI2_MIPI_PWDN	<&gpio3 2 GPIO_ACTIVE_HIGH>
-			MX8MQ_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x59
+			MX8MQ_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x61
 #define GP_CSI2_MIPI_RESET	<&gpio2 19 GPIO_ACTIVE_LOW>
-			MX8MQ_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x19
+			MX8MQ_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x61
 		>;
 	};
 
@@ -518,6 +518,14 @@
 		status = "okay";
 	};
 
+	clocks {
+		clk25m: clk25m {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -552,16 +560,30 @@
 
 	reg_vref_0v9: regulator-vref-0v9 {
 		compatible = "regulator-fixed";
-		regulator-name = "vref-1v";
+		regulator-name = "vref-0v9";
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <900000>;
 	};
 
-	reg_vref_1v8: regulator@0 {
+	reg_vref_1v8: regulator-vref-1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "1P8V";
+		regulator-name = "vref-1v8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+	};
+
+	reg_vref_2v5: regulator-vref-2v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "vref-2v5";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+	};
+
+	reg_vref_3v3: regulator-vref-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vref-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_vref_5v: regulator-vref-5v {
@@ -825,18 +847,20 @@
 	status = "okay";
 
 	ov5640-mipi1@3c {
-		compatible = "ov5640_v3";
+		compatible = "ov5640_mipisubdev";
 		reg = <0x3c>;
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_csi1>;
-		clocks = <&mipi_mclk>;
+		clocks = <&clk25m 0>;
 		clock-names = "csi_mclk";
 		csi_id = <0>;
+		AVDD-supply = <&reg_vref_2v5>;
+		DVDD-supply = <&reg_vref_3v3>;
+		DOVDD-supply = <&reg_vref_1v8>;
 		pwn-gpios = GP_CSI1_MIPI_PWDN;
 		rst-gpios = GP_CSI1_MIPI_RESET;
-		mclk = <22000000>;
-		mclk_source = <0>;
+		mclk = <25000000>;
 		mipi_csi;
 
 		port {
@@ -860,18 +884,20 @@
 	status = "okay";
 
 	ov5640-mipi2@3c {
-		compatible = "ov5640_v3";
+		compatible = "ov5640_mipisubdev";
 		reg = <0x3c>;
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3_csi2>;
-		clocks = <&mipi_mclk>;
+		clocks = <&clk25m 0>;
 		clock-names = "csi_mclk";
 		csi_id = <1>;
+		AVDD-supply = <&reg_vref_2v5>;
+		DVDD-supply = <&reg_vref_3v3>;
+		DOVDD-supply = <&reg_vref_1v8>;
 		pwn-gpios = GP_CSI2_MIPI_PWDN;
 		rst-gpios = GP_CSI2_MIPI_RESET;
-		mclk = <22000000>;
-		mclk_source = <0>;
+		mclk = <25000000>;
 		mipi_csi;
 
 		port {
