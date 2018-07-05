@@ -6,38 +6,8 @@
 /dts-v1/;
 
 #include "fsl-imx8mq.dtsi"
-
-#if 1
-#define HDMI_STATUS	"okay"
-#define HDMI_ENABLE
-#else
-#define HDMI_STATUS	"disabled"
-#endif
-
-#if 1
-#define MIPI_DSI_STATUS	"okay"
-#define MIPI_ENABLE
-#else
-#define MIPI_DSI_STATUS	"disabled"
-#endif
-
-#if defined(MIPI_ENABLE) && !defined(HDMI_ENABLE)
-#if 1
-#define MIPI_ON_DCSS	/* Otherwise mipi on LCDIF */
-#endif
-#endif
-
-#if 1
-#define M101NWWB	/* Also used for TM070JDHG30 */
-#elif 0
-#define RM68200
-#endif
-
-#ifdef MIPI_ON_DCSS
-#define MIPI_FB	<&fb_dcss>
-#else
-#define MIPI_FB	<&lcdif>
-#endif
+#include "panel-ltk080a60a004t.dtsi"
+#include "panel-osd050t3236.dtsi"
 
 &iomuxc {
 	pinctrl-names = "default";
@@ -88,7 +58,7 @@
 		>;
 	};
 
-	pinctrl_gpio_keys: gpio_keysgrp {
+	pinctrl_gpio_keys: gpio-keysgrp {
 		fsl,pins = <
 #define GP_GPIOKEY_POWER	<&gpio1 7 GPIO_ACTIVE_LOW>
 			MX8MQ_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
@@ -495,17 +465,28 @@
 	compatible = "boundary,imx8mq-nitrogen8m", "fsl,imx8mq";
 
 	aliases {
+		backlight_mipi_dsi = &backlight_mipi_dsi;
+		dcss = &dcss;
+		dcss_disp0 = &dcss_disp0_hdmi;
 		fb_mipi_dsi = &fb_mipi_dsi;
 		fb_dcss = &fb_dcss;
+		hdmi = &hdmi;
+		lcdif = &lcdif;
+		mipi_dsi = &mipi_dsi;
+		mipi_dsi_bridge = &mipi_dsi_bridge;
+		mipi_dsi_phy = &mipi_dsi_phy;
+		mipi_to_lvds = &mipi_to_lvds;
 		pwm_mipi_dsi = &pwm1;
+		sound_hdmi = &sound_hdmi;
 	};
 
-	backlight_mipi_dsi: backlight_mipi_dsi {
+	backlight_mipi_dsi: backlight-mipi-dsi {
 		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10>;
 		compatible = "pwm-backlight";
 		default-brightness-level = <8>;
-		display = MIPI_FB;
+		display = <&lcdif>;
 		pwms = <&pwm3 0 30000>;		/* 33.3 Khz */
+		status = "disabled";
 	};
 
 	bt-rfkill {
@@ -539,7 +520,7 @@
 		};
 	};
 
-	mipi_mclk: mipi_mclk {
+	mipi_mclk: mipi-mclk {
 		compatible = "pwm-clock";
 		#clock-cells = <0>;
 		clock-frequency = <22000000>;
@@ -624,12 +605,12 @@
 		hp-det = <2 0>;
 	};
 
-	sound-hdmi {
+	sound_hdmi: sound-hdmi {
 		compatible = "fsl,imx-audio-cdnhdmi";
 		model = "imx-audio-hdmi";
 		audio-cpu = <&sai4>;
 		protocol = <1>;
-		status = HDMI_STATUS;
+		status = "okay";
 	};
 };
 
@@ -673,43 +654,8 @@
 };
 
 &dcss {
-#ifdef MIPI_ON_DCSS
-	status = MIPI_DSI_STATUS;
-	disp-dev = "mipi_disp";
-
-	clocks = <&clk IMX8MQ_CLK_DISP_APB_ROOT>,
-		 <&clk IMX8MQ_CLK_DISP_AXI_ROOT>,
-		 <&clk IMX8MQ_CLK_DISP_RTRM_ROOT>,
-		 <&clk IMX8MQ_CLK_DC_PIXEL_DIV>,
-		 <&clk IMX8MQ_CLK_DUMMY>,
-		 <&clk IMX8MQ_CLK_DISP_DTRC_DIV>;
-	clock-names = "apb", "axi", "rtrm", "pix_div", "pix_out", "dtrc";
-
-	assigned-clocks = <&clk IMX8MQ_CLK_DISP_AXI_SRC>,
-			  <&clk IMX8MQ_CLK_DISP_RTRM_SRC>,
-			  <&clk IMX8MQ_CLK_DISP_RTRM_PRE_DIV>,
-			  <&clk IMX8MQ_CLK_DC_PIXEL_SRC>,
-			  <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>;
-	assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_800M>,
-				 <&clk IMX8MQ_VIDEO_PLL1_OUT>,
-				 <&clk IMX8MQ_CLK_DISP_RTRM_CG>,
-				 <&clk IMX8MQ_VIDEO_PLL1_OUT>,
-				 <&clk IMX8MQ_CLK_25M>;
-	assigned-clock-rates = <800000000>,
-			       <400000000>,
-			       <400000000>;
-
-	dcss_disp0: port@0 {
-		reg = <0>;
-
-		dcss_disp0_mipi_dsi: mipi_dsi {
-			remote-endpoint = <&mipi_dsi_in>;
-		};
-	};
-#else
-	status = HDMI_STATUS;
+	status = "okay";
 	disp-dev = "hdmi_disp";
-#endif
 };
 
 &ecspi2 {
@@ -765,7 +711,7 @@
 };
 
 &hdmi {
-	status = HDMI_STATUS;
+	status = "okay";
 };
 
 &i2c1 {
@@ -952,17 +898,18 @@
 		wlf,shared-lrclk;
 	};
 
-	mipi_to_lvds@2c {
+	mipi_to_lvds: mipi-to-lvds@2c {
 		clocks = <&mipi_dsi_phy 0>;
 		clock-names = "mipi_clk";
 		compatible = "ti,sn65dsi83";
-		display = MIPI_FB;
+		display = <&lcdif>;
 		display-dsi = <&fb_mipi_dsi>;
 		enable-gpios = GP_I2C4_SN65DSI83_EN;
 		interrupts-extended = GPIRQ_I2C4_SN65DSI83;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c4_sn65dsi83>;
 		reg = <0x2c>;
+		status = "disabled";
 	};
 
 	touchscreen@38 {
@@ -976,22 +923,8 @@
 
 };
 
-#if !defined(MIPI_ON_DCSS) && !defined(HDMI_ENABLE)
-/ {
-	display-subsystem {
-		status = "disabled";
-	};
-};
-
-&irqsteer_dcss {
-	status = "disabled";
-};
-#endif
-
 &lcdif {
-#ifndef MIPI_ON_DCSS
-	status = "okay";
-
+	status = "disabled";
 	assigned-clocks = <&clk IMX8MQ_CLK_LCDIF_PIXEL_SRC>,
 			  <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>;
 	assigned-clock-parents = <&clk IMX8MQ_VIDEO_PLL1_OUT>,
@@ -1003,7 +936,6 @@
 			remote-endpoint = <&mipi_dsi_in>;
 		};
 	};
-#endif
 };
 
 &mipi_csi_1 {
@@ -1039,14 +971,12 @@
 };
 
 &mipi_dsi_phy {
-	status = MIPI_DSI_STATUS;
+	status = "disabled";
 };
 
 &mipi_dsi {
-	status = MIPI_DSI_STATUS;
-#ifndef MIPI_ON_DCSS
+	status = "disabled";
 	as_bridge;
-#endif
 	assigned-clocks = <&clk IMX8MQ_CLK_DSI_CORE_SRC>,
 			  <&clk IMX8MQ_CLK_DSI_PHY_REF_SRC>,
 			  <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>;
@@ -1062,37 +992,48 @@
 
 	port@1 {
 		mipi_dsi_in: endpoint {
-#ifdef MIPI_ON_DCSS
-			remote-endpoint = <&dcss_disp0_mipi_dsi>;
-#else
 			remote-endpoint = <&lcdif_mipi_dsi>;
-#endif
 		};
 	};
 };
 
 &mipi_dsi_bridge {
-	status = MIPI_DSI_STATUS;
+	status = "disabled";
 
 	fb_mipi_dsi: panel@0 {
 		bits-per-color = <8>;
-#ifndef MIPI_ON_DCSS
 		bridge-de-active = <0>;
 		bridge-sync-active = <1>;
-#endif
 		bus-format = "rgb888";
 		compatible = "panel,simple";
 		dsi-format = "rgb888";
+		dsi-lanes = <4>;
+		mode-skip-eot;
+		mode-video;
+		mode-video-burst;
+		panel-height-mm = <136>;
+		panel-width-mm = <217>;
 		power-supply = <&reg_vref_5v>;
 		reg = <0>;
+		spwg;
 
-#ifdef RM68200
-#include "panel-osd050t3236.dtsi"
-#elif defined(M101NWWB)
-#include "panel-m101nwwb.dtsi"
-#else
-#include "panel-ltk080a60a004t.dtsi"
-#endif
+		display-timings {
+			t_dsi: t-dsi-default {
+				/* m101nwwb by default */
+				clock-frequency = <70000000>;
+				hactive = <1280>;
+				vactive = <800>;
+				hback-porch = <5>;
+				hfront-porch = <123>;
+				vback-porch = <3>;
+				vfront-porch = <24>;
+				hsync-len = <1>;
+				vsync-len = <1>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+			};
+		};
 
 		port {
 			panel1_in: endpoint {
@@ -1237,11 +1178,7 @@
 
 &usb_dwc3_0 {
 	status = "okay";
-#if 1
 	dr_mode = "otg";
-#else
-	dr_mode = "host";
-#endif
 	vbus-supply = <&reg_usb_otg_vbus>;
 };
 
