@@ -443,6 +443,32 @@ config SND_SOC_IMX_HDMI
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  IMX HDMI.
 
+config SND_SOC_IMX_ADAU1761
+	tristate "SoC Audio support for i.MX boards with adau1761"
+	depends on OF && I2C
+	select SND_SOC_ADAU1761
+	select SND_SOC_ADAU1761_I2C
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a adau1761 codec.
+
+config SND_SOC_IMX_ADAU1781
+	tristate "SoC Audio support for i.MX boards with adau1781"
+	depends on OF && I2C
+	select SND_SOC_ADAU1781
+	select SND_SOC_ADAU1781_I2C
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a adau1781 codec.
+
 endif # SND_IMX_SOC
 
 endmenu
