@@ -65,7 +65,6 @@ static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		adau->pll_regs[5] = 1;
@@ -78,7 +77,7 @@ static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 	}
 
 	/* The PLL register is 6 bytes long and can only be written at once. */
-	ret = regmap_raw_write(adau->regmap, ADAU17X1_PLL_CONTROL,
+	regmap_raw_write(adau->regmap, ADAU17X1_PLL_CONTROL,
 			adau->pll_regs, ARRAY_SIZE(adau->pll_regs));
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -182,7 +181,7 @@ static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	struct snd_soc_dapm_update update;
+	struct snd_soc_dapm_update update = {};
 	unsigned int stream = e->shift_l;
 	unsigned int val, change;
 	int reg;
@@ -300,6 +299,7 @@ static const struct snd_soc_dapm_route adau17x1_dsp_dapm_routes[] = {
 
 	{ "DSP", NULL, "Left Decimator" },
 	{ "DSP", NULL, "Right Decimator" },
+	{ "DSP", NULL, "Playback" },
 };
 
 static const struct snd_soc_dapm_route adau17x1_no_dsp_dapm_routes[] = {
@@ -503,7 +503,7 @@ static int adau17x1_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (adau->sigmadsp) {
-		ret = adau17x1_setup_firmware(adau, params_rate(params));
+		ret = adau17x1_setup_firmware(codec, params_rate(params));
 		if (ret < 0)
 			return ret;
 	}
@@ -836,26 +836,48 @@ bool adau17x1_volatile_register(struct device *dev, unsigned int reg)
 }
 EXPORT_SYMBOL_GPL(adau17x1_volatile_register);
 
-int adau17x1_setup_firmware(struct adau *adau, unsigned int rate)
+int adau17x1_setup_firmware(struct snd_soc_codec *codec, unsigned int rate)
 {
 	int ret;
-	int dspsr;
+	int dspsr, dsp_run;
+	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+
+	/* Check if sample rate is the same as before. If it is there is no
+	 * point in performing the below steps as the call to
+	 * sigmadsp_setup(...) will return directly when it finds the sample
+	 * rate to be the same as before. By checking this we can prevent an
+	 * audiable popping noise which occours when toggling DSP_RUN.
+	 */
+	if (adau->sigmadsp->current_samplerate == rate)
+		return 0;
+
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = regmap_read(adau->regmap, ADAU17X1_DSP_SAMPLING_RATE, &dspsr);
 	if (ret)
-		return ret;
+		goto err;
+
+	ret = regmap_read(adau->regmap, ADAU17X1_DSP_RUN, &dsp_run);
+	if (ret)
+		goto err;
 
 	regmap_write(adau->regmap, ADAU17X1_DSP_ENABLE, 1);
 	regmap_write(adau->regmap, ADAU17X1_DSP_SAMPLING_RATE, 0xf);
+	regmap_write(adau->regmap, ADAU17X1_DSP_RUN, 0);
 
 	ret = sigmadsp_setup(adau->sigmadsp, rate);
 	if (ret) {
 		regmap_write(adau->regmap, ADAU17X1_DSP_ENABLE, 0);
-		return ret;
+		goto err;
 	}
 	regmap_write(adau->regmap, ADAU17X1_DSP_SAMPLING_RATE, dspsr);
+	regmap_write(adau->regmap, ADAU17X1_DSP_RUN, dsp_run);
 
-	return 0;
+err:
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adau17x1_setup_firmware);
 
