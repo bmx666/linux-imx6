@@ -312,12 +312,13 @@
 	};
 
 	backlight_lvds: backlight_lvds {
-		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10>;
+		brightness-levels = <1 2 3 4 5 6 7 8 9 10>;
 		compatible = "pwm-backlight";
 		default-brightness-level = <8>;
 		display = <&fb_lvds>;
-		power-supply = <&reg_3p3v>;
+		power-supply = <&reg_backlight>;
 		pwms = <&pwm4 0 5000000>;
+		enable-gpios = <&tca6424 6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -430,13 +431,7 @@
 			linux,default-trigger = "none";
 		};
 
-		pwr_backlight {
-			label = "pwr_backlight";
-			gpios = <&tca6424 13 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
-
+		/*
 		pwr_sata3p3v {
 			label = "pwr_sata_3p3v";
 			gpios = <&tca6424 14 GPIO_ACTIVE_HIGH>;
@@ -450,13 +445,7 @@
 			default-state = "on";
 			linux,default-trigger = "none";
 		};
-
-		enable_backlight {
-			label = "enable_backlight";
-			gpios = <&tca6424 6 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
+		*/
 	};
 
 	memory {
@@ -503,14 +492,73 @@
 			regulator-always-on;
 		};
 
-		reg_usb_otg_vbus: regulator@3 {
+		reg_5p0v: regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
+			regulator-name = "5P0V";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		reg_usb_otg_vbus: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
 			regulator-name = "usb_otg_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio3 22 0>;
 			enable-active-high;
+		};
+
+		reg_backlight: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "backlight_3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			gpio = <&tca6424 13 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			startup-delay-us = <100000>;
+			vin-supply = <&reg_3p3v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		reg_sata_3p3v: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "sata_3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			/* regulator-boot-on; */
+			gpio = <&tca6424 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			/* startup-delay-us = <10000000>; */
+			vin-supply = <&reg_3p3v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		reg_sata_5p0v: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "sata_5P0V";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			/* regulator-boot-on; */
+			gpio = <&tca6424 15 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			/* startup-delay-us = <10000000>; */
+			vin-supply = <&reg_5p0v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
 		};
 	};
 

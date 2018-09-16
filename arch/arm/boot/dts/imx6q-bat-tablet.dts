@@ -67,6 +67,8 @@
 };
 
 &sata {
+	target-supply = <&reg_sata_3p3v
+					 &reg_sata_5p0v>;
 	status = "okay";
 };
 
