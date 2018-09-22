@@ -188,6 +188,7 @@
 	pinctrl_i2c2_lis331dlh: i2c2-lis331dlhgrp {
 		fsl,pins = <
 		>;
+#define GP_REGULATOR_LIS331DLH		<&tca6424 11 GPIO_ACTIVE_HIGH>
 #define GP_LIS331DLH_INT1			<&tca6424 0 GPIO_ACTIVE_HIGH>
 #define GP_LIS331DLH_INT2			<&tca6424 1 GPIO_ACTIVE_HIGH>
 	};
@@ -425,13 +426,6 @@
 			linux,default-trigger = "none";
 		};
 
-		pwr_lis331 {
-			label = "pwr_lis331";
-			gpios = <&tca6424 11 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
-
 		pwr_gps {
 			label = "pwr_gps";
 			gpios = <&tca6424 12 GPIO_ACTIVE_HIGH>;
@@ -564,6 +558,22 @@
 			enable-active-high;
 			/* startup-delay-us = <10000000>; */
 			vin-supply = <&reg_5p0v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		reg_lis331dlh: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "lis331dlh_3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			gpio = GP_REGULATOR_LIS331DLH;
+			enable-active-high;
+			startup-delay-us = <100000>;
+			vin-supply = <&reg_3p3v>;
 			regulator-state-mem {
 				regulator-off-in-suspend;
 			};
@@ -748,8 +758,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_lis331dlh>;
 
-		Vdd-supply = <&reg_3p3v>;
-		Vdd_IO-supply = <&reg_3p3v>;
+		Vdd-supply = <&reg_lis331dlh>;
+		Vdd_IO-supply = <&reg_lis331dlh>;
 		interrupts-extended = GP_LIS331DLH_INT1, GP_LIS331DLH_INT2;
 
 		st,click-single-x;
