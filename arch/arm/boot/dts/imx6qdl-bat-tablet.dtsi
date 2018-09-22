@@ -170,6 +170,13 @@
 #define GP_ADAU1761_HP_DETECT <&tca6424 5 GPIO_ACTIVE_HIGH>
 	};
 
+	pinctrl_i2c2_bq25895: i2c2-bq25895grp {
+		fsl,pins = <
+#define GPIRQ_BQ25895_STAT			<&gpio4 22 IRQ_TYPE_LEVEL_LOW>
+			MX6QDL_PAD_DISP0_DAT1__GPIO4_IO22	0x1b0b0
+		>;
+	};
+
 	pinctrl_i2c2_ov5640_mipi_1: i2c2-ov5640-mipi-1grp {
 		fsl,pins = <
 #define GP_OV5640_MIPI_1_POWER_DOWN	<&gpio6 9 GPIO_ACTIVE_HIGH>
@@ -861,6 +868,26 @@
 		csi_id = <0>;
 		mclk = <22000000>;
 		mclk_source = <0>;
+	};
+
+	bq25895: bq25895@6a {
+		compatible = "ti,bq25895";
+		reg = <0x6a>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2_bq25895>;
+		interrupts-extended = GPIRQ_BQ25895_STAT;
+
+		ti,battery-regulation-voltage = <4200000>;
+		ti,charge-current = <1000000>;
+		ti,termination-current = <50000>;
+		ti,precharge-current = <128000>;
+		ti,minimum-sys-voltage = <3600000>;
+		ti,boost-voltage = <5000000>;
+		ti,boost-max-current = <1000000>;
+
+		/* ti,use-ilim-pin; */
+		ti,thermal-regulation-threshold = <120>;
 	};
 };
 
