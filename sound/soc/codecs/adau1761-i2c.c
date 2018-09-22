@@ -15,23 +15,88 @@
 
 #include "adau1761.h"
 
+static const char reg_avdd[]  = "AVDD";
+static const char reg_iovdd[] = "IOVDD";
+
+static int adau1761_i2c_reg_ctrl(struct device *dev, bool state)
+{
+	struct adau *adau = dev_get_drvdata(dev);
+	int ret;
+
+	if (state) {
+		ret = regulator_bulk_enable(ARRAY_SIZE(adau->regulators),
+					adau->regulators);
+		if (ret)
+			dev_err(dev, "failed to enable regulators: %d\n", ret);
+		/* Chip needs time to wakeup. Not mentioned in datasheet */
+		usleep_range(10000, 20000);
+	} else {
+		ret = regulator_bulk_disable(ARRAY_SIZE(adau->regulators),
+					adau->regulators);
+		if (ret)
+			dev_err(dev, "failed to disable regulators: %d\n", ret);
+	}
+	return ret;
+}
+
+static int adau1761_i2c_reg_init(struct device *dev)
+{
+	struct adau *adau = dev_get_drvdata(dev);
+	int ret;
+
+	adau->regulators[0].supply = reg_avdd;
+	adau->regulators[1].supply = reg_iovdd;
+	ret = regulator_bulk_get(dev,
+				 ARRAY_SIZE(adau->regulators),
+				 adau->regulators);
+	if (ret) {
+		dev_err(dev, "failed to get regulators: %d\n", ret);
+		return ret;
+	}
+
+	ret = adau1761_i2c_reg_ctrl(dev, true);
+	if (ret)
+		goto free_reg;
+
+	return 0;
+
+free_reg:
+	regulator_bulk_free(ARRAY_SIZE(adau->regulators),
+				adau->regulators);
+	return ret;
+}
+
 static int adau1761_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct regmap_config config;
+	int ret;
 
 	config = adau1761_regmap_config;
 	config.val_bits = 8;
 	config.reg_bits = 16;
 
-	return adau1761_probe(&client->dev,
-		devm_regmap_init_i2c(client, &config),
-		id->driver_data, NULL);
+	ret = adau1761_probe(dev,
+				devm_regmap_init_i2c(client, &config),
+				id->driver_data, NULL);
+	if (ret)
+		return ret;
+
+	return adau1761_i2c_reg_init(dev);
 }
 
 static int adau1761_i2c_remove(struct i2c_client *client)
 {
-	adau17x1_remove(&client->dev);
+	struct adau *adau = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
+
+	adau17x1_remove(dev);
+
+	adau1761_i2c_reg_ctrl(dev, false);
+	regulator_bulk_free(ARRAY_SIZE(adau->regulators),
+				adau->regulators);
+
 	return 0;
 }
 

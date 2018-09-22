@@ -2,6 +2,7 @@
 #define __ADAU17X1_H__
 
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_data/adau17x1.h>
 
 #include "sigmadsp.h"
@@ -50,6 +51,8 @@ struct adau {
 
 	struct regmap *regmap;
 	struct sigmadsp *sigmadsp;
+
+	struct regulator_bulk_data regulators[2];
 };
 
 int adau17x1_add_widgets(struct snd_soc_codec *codec);
