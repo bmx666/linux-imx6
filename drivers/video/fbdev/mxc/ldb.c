@@ -12,12 +12,15 @@
 
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
@@ -105,6 +108,8 @@ struct ldb_data {
 	struct clk *div_7_clk[2];
 	struct clk *div_sel_clk[2];
 	struct clk *clk_ldb_di_choices[5];
+	struct gpio_desc *enable_gpio;
+	bool enable_active_low;
 };
 
 static const struct crtc_mux imx6q_lvds0_crtc_mux[] = {
@@ -731,6 +736,41 @@ static bool is_valid_crtc(struct ldb_data *ldb, enum crtc crtc,
 	return false;
 }
 
+static struct gpio_desc* of_get_enable_gpio(struct ldb_data *ldb,
+	struct device_node *np)
+{
+	enum of_gpio_flags flags;
+	int gpio;
+
+	if (!of_find_node_with_property(np, "enable-gpios")) {
+		of_node_put(np);
+		return NULL;
+	}
+
+	gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (!gpio_is_valid(gpio))
+		return ERR_PTR(gpio);
+
+	ldb->enable_active_low = flags & OF_GPIO_ACTIVE_LOW;
+
+	return devm_gpiod_get(ldb->dev, "enable",
+				ldb->enable_active_low ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
+}
+
+static void ldb_power_on(struct ldb_data *ldb)
+{
+	if (ldb->enable_gpio)
+		gpiod_set_value_cansleep(ldb->enable_gpio,
+					ldb->enable_active_low ? 0 : 1);
+}
+
+static void ldb_power_off(struct ldb_data *ldb)
+{
+	if (ldb->enable_gpio)
+		gpiod_set_value_cansleep(ldb->enable_gpio,
+					ldb->enable_active_low ? 1 : 0);
+}
+
 static int ldb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -915,6 +955,13 @@ static int ldb_probe(struct platform_device *pdev)
 		}
 	}
 
+	ldb->enable_gpio = of_get_enable_gpio(ldb, np);
+	if (IS_ERR(ldb->enable_gpio)) {
+		dev_err(dev, "failed to get enable GPIO: %ld\n",
+					PTR_ERR(ldb->enable_gpio));
+		return PTR_ERR(ldb->enable_gpio);
+	}
+
 	for (i = 0; i < ARRAY_SIZE(ldb->clk_ldb_di_choices); i++) {
 		sprintf(clkname, "choice%d", i);
 		ldb->clk_ldb_di_choices[i] = devm_clk_get(dev, clkname);
@@ -934,6 +981,8 @@ static int ldb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	ldb_power_on(ldb);
+
 	ldb->mddh = mxc_dispdrv_register(&ldb_drv);
 	mxc_dispdrv_setdata(ldb->mddh, ldb);
 	dev_set_drvdata(&pdev->dev, ldb);
@@ -947,13 +996,46 @@ static int ldb_remove(struct platform_device *pdev)
 
 	mxc_dispdrv_puthandle(ldb->mddh);
 	mxc_dispdrv_unregister(ldb->mddh);
+
+	ldb_power_off(ldb);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int ldb_suspend(struct device *dev)
+{
+	struct ldb_data *ldb = dev_get_drvdata(dev);
+
+	ldb_power_off(ldb);
+
+	return 0;
+}
+
+static int ldb_resume(struct device *dev)
+{
+	struct ldb_data *ldb = dev_get_drvdata(dev);
+
+	ldb_power_on(ldb);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops ldb_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend = ldb_suspend,
+	.resume = ldb_resume,
+	.poweroff = ldb_suspend,
+	.restore = ldb_resume,
+#endif
+};
 
 static struct platform_driver ldb_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table	= ldb_dt_ids,
+		.pm	= &ldb_pm_ops,
 	},
 	.probe = ldb_probe,
 	.remove = ldb_remove,
