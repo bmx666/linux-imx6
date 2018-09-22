@@ -1023,12 +1023,7 @@ static int ldb_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops ldb_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend = ldb_suspend,
-	.resume = ldb_resume,
-	.poweroff = ldb_suspend,
-	.restore = ldb_resume,
-#endif
+	SET_SYSTEM_SLEEP_PM_OPS(ldb_suspend, ldb_resume)
 };
 
 static struct platform_driver ldb_driver = {
