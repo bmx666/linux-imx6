@@ -166,6 +166,7 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_0__CCM_CLKO1		0x000b0		/* sys_mclk */
 		>;
+#define GP_REGULATOR_ADAU1761 <&tca6424 9 GPIO_ACTIVE_HIGH>
 #define GP_ADAU1761_HP_DETECT <&tca6424 5 GPIO_ACTIVE_HIGH>
 	};
 
@@ -412,13 +413,6 @@
 			linux,default-trigger = "none";
 		};
 
-		pwr_adau1761 {
-			label = "pwr_adau1761";
-			gpios = <&tca6424 9 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
-
 		pwr_pam8406dr {
 			label = "pwr_pam8406dr";
 			gpios = <&tca6424 10 GPIO_ACTIVE_HIGH>;
@@ -571,6 +565,22 @@
 			regulator-max-microvolt = <3300000>;
 			regulator-boot-on;
 			gpio = GP_REGULATOR_LIS331DLH;
+			enable-active-high;
+			startup-delay-us = <100000>;
+			vin-supply = <&reg_3p3v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		reg_adau1761: regulator@9 {
+			compatible = "regulator-fixed";
+			reg = <9>;
+			regulator-name = "adau1761_3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			gpio = GP_REGULATOR_ADAU1761;
 			enable-active-high;
 			startup-delay-us = <100000>;
 			vin-supply = <&reg_3p3v>;
@@ -805,6 +815,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_adau1761>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
+		AVDD-supply = <&reg_adau1761>;
+		IOVDD-supply = <&reg_adau1761>;
 		/* wlf,shared-lrclk; */
 	};
 
