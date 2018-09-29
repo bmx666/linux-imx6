@@ -233,6 +233,14 @@
 #define GP_LDB_ENABLE		<&tca6424 7 GPIO_ACTIVE_HIGH>
 	};
 
+	pinctrl_poweroff: poweroffgrp {
+		fsl,pins = <
+			/* Main power, on high shutdown system */
+#define GP_POWER_OFF <&gpio2 1 GPIO_ACTIVE_LOW>
+			MX6QDL_PAD_NANDF_D1__GPIO2_IO01		0x030b0
+		>;
+	};
+
 	pinctrl_pwm3: pwm3grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_DAT1__PWM3_OUT		0x1b0b1
@@ -453,6 +461,13 @@
 
 	memory {
 		reg = <0x10000000 0x40000000>;
+	};
+
+	poweroff: poweroff {
+		compatible = "gpio-poweroff";
+		gpios = GP_POWER_OFF;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_poweroff>;
 	};
 
 	mipi_mclk: mipi_mclk {
