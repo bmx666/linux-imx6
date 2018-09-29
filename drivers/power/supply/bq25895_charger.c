@@ -35,19 +35,18 @@
 
 enum bq25895_fields {
 	F_EN_HIZ, F_EN_ILIM, F_IILIM,				     /* Reg00 */
-	F_BHOT, F_BCOLD, F_VINDPM_OFS,				     /* Reg01 */
+	F_BHOT, F_BCOLD, F_VINDPM_OS,				     /* Reg01 */
 	F_CONV_START, F_CONV_RATE, F_BOOSTF, F_ICO_EN,
 	F_HVDCP_EN, F_MAXC_EN, F_FORCE_DPM, F_AUTO_DPDM_EN,	     /* Reg02 */
 	F_BAT_LOAD_EN, F_WD_RST, F_OTG_CFG, F_CHG_CFG, F_SYSVMIN,    /* Reg03 */
 	F_PUMPX_EN, F_ICHG,					     /* Reg04 */
 	F_IPRECHG, F_ITERM,					     /* Reg05 */
 	F_VREG, F_BATLOWV, F_VRECHG,				     /* Reg06 */
-	F_TERM_EN, F_STAT_DIS, F_WD, F_TMR_EN, F_CHG_TMR,
-	F_JEITA_ISET,						     /* Reg07 */
+	F_TERM_EN, F_STAT_DIS, F_WD, F_TMR_EN, F_CHG_TMR, /* Reg07 */
 	F_BATCMP, F_VCLAMP, F_TREG,				     /* Reg08 */
-	F_FORCE_ICO, F_TMR2X_EN, F_BATFET_DIS, F_JEITA_VSET,
+	F_FORCE_ICO, F_TMR2X_EN, F_BATFET_DIS,
 	F_BATFET_DLY, F_BATFET_RST_EN, F_PUMPX_UP, F_PUMPX_DN,	     /* Reg09 */
-	F_BOOSTV, F_BOOSTI,					     /* Reg0A */
+	F_BOOSTV,					     /* Reg0A */
 	F_VBUS_STAT, F_CHG_STAT, F_PG_STAT, F_SDP_STAT, F_VSYS_STAT, /* Reg0B */
 	F_WD_FAULT, F_BOOST_FAULT, F_CHG_FAULT, F_BAT_FAULT,
 	F_NTC_FAULT,						     /* Reg0C */
@@ -71,10 +70,12 @@ struct bq25895_init_data {
 	u8 iprechg;	/* precharge current		*/
 	u8 sysvmin;	/* minimum system voltage limit */
 	u8 boostv;	/* boost regulation voltage	*/
-	u8 boosti;	/* boost current limit		*/
 	u8 boostf;	/* boost frequency		*/
 	u8 ilim_en;	/* enable ILIM pin		*/
 	u8 treg;	/* thermal regulation threshold */
+	u8 vindpm_force_abs; /* force VINDPM absolute */
+	u8 vindpm; /* input voltage limit threshold absolute */
+	u8 vindpm_os; /* input voltage limit threshold relative */
 };
 
 struct bq25895_state {
@@ -147,7 +148,7 @@ static const struct reg_field bq25895_reg_fields[] = {
 	/* REG01 */
 	[F_BHOT]		= REG_FIELD(0x01, 6, 7),
 	[F_BCOLD]		= REG_FIELD(0x01, 5, 5),
-	[F_VINDPM_OFS]		= REG_FIELD(0x01, 0, 4),
+	[F_VINDPM_OS]		= REG_FIELD(0x01, 0, 4),
 	/* REG02 */
 	[F_CONV_START]		= REG_FIELD(0x02, 7, 7),
 	[F_CONV_RATE]		= REG_FIELD(0x02, 6, 6),
@@ -179,23 +180,20 @@ static const struct reg_field bq25895_reg_fields[] = {
 	[F_WD]			= REG_FIELD(0x07, 4, 5),
 	[F_TMR_EN]		= REG_FIELD(0x07, 3, 3),
 	[F_CHG_TMR]		= REG_FIELD(0x07, 1, 2),
-	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0),
 	/* REG08 */
-	[F_BATCMP]		= REG_FIELD(0x08, 6, 7),
+	[F_BATCMP]		= REG_FIELD(0x08, 5, 7),
 	[F_VCLAMP]		= REG_FIELD(0x08, 2, 4),
 	[F_TREG]		= REG_FIELD(0x08, 0, 1),
 	/* REG09 */
 	[F_FORCE_ICO]		= REG_FIELD(0x09, 7, 7),
 	[F_TMR2X_EN]		= REG_FIELD(0x09, 6, 6),
 	[F_BATFET_DIS]		= REG_FIELD(0x09, 5, 5),
-	[F_JEITA_VSET]		= REG_FIELD(0x09, 4, 4),
 	[F_BATFET_DLY]		= REG_FIELD(0x09, 3, 3),
 	[F_BATFET_RST_EN]	= REG_FIELD(0x09, 2, 2),
 	[F_PUMPX_UP]		= REG_FIELD(0x09, 1, 1),
 	[F_PUMPX_DN]		= REG_FIELD(0x09, 0, 0),
 	/* REG0A */
 	[F_BOOSTV]		= REG_FIELD(0x0A, 4, 7),
-	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2),
 	/* REG0B */
 	[F_VBUS_STAT]		= REG_FIELD(0x0B, 5, 7),
 	[F_CHG_STAT]		= REG_FIELD(0x0B, 3, 4),
@@ -242,9 +240,11 @@ static const struct reg_field bq25895_reg_fields[] = {
  */
 enum bq25895_table_ids {
 	/* range tables */
+	TBL_VINDPM_OS,
+	TBL_VINDPM,
 	TBL_ICHG,
-	TBL_ITERM,
 	TBL_IPRECHG,
+	TBL_ITERM,
 	TBL_VREG,
 	TBL_BATCMP,
 	TBL_VCLAMP,
@@ -253,20 +253,12 @@ enum bq25895_table_ids {
 
 	/* lookup tables */
 	TBL_TREG,
-	TBL_BOOSTI,
 };
 
 /* Thermal Regulation Threshold lookup table, in degrees Celsius */
 static const u32 bq25895_treg_tbl[] = { 60, 80, 100, 120 };
 
 #define BQ25895_TREG_TBL_SIZE		ARRAY_SIZE(bq25895_treg_tbl)
-
-/* Boost mode current limit lookup table, in uA */
-static const u32 bq25895_boosti_tbl[] = {
-	500000, 700000, 1100000, 1300000, 1600000, 1800000, 2100000, 2400000
-};
-
-#define BQ25895_BOOSTI_TBL_SIZE		ARRAY_SIZE(bq25895_boosti_tbl)
 
 struct bq25895_range {
 	u32 min;
@@ -284,17 +276,19 @@ static const union {
 	struct bq25895_lookup lt;
 } bq25895_tables[] = {
 	/* range tables */
-	[TBL_ICHG] =	{ .rt = {0,	  5056000, 64000} },	 /* uA */
-	[TBL_ITERM] =	{ .rt = {64000,   1024000, 64000} },	 /* uA */
-	[TBL_VREG] =	{ .rt = {3840000, 4608000, 16000} },	 /* uV */
-	[TBL_BATCMP] =	{ .rt = {0,	  140,     20} },	 /* mOhm */
-	[TBL_VCLAMP] =	{ .rt = {0,	  224000,  32000} },	 /* uV */
-	[TBL_BOOSTV] =	{ .rt = {4550000, 5510000, 64000} },	 /* uV */
-	[TBL_SYSVMIN] = { .rt = {3000000, 3700000, 100000} },	 /* uV */
+	[TBL_VINDPM_OS] = { .rt = {0,       3100000,  100000} }, /* uV */
+	[TBL_VINDPM]    = { .rt = {2600000, 15300000, 100000} }, /* uV */
+	[TBL_ICHG]      = { .rt = {0,       5056000,  64000 } }, /* uA */
+	[TBL_IPRECHG]   = { .rt = {64000,   1024000,  64000 } }, /* uA */
+	[TBL_ITERM]     = { .rt = {64000,   1024000,  64000 } }, /* uA */
+	[TBL_VREG]      = { .rt = {3840000, 4608000,  16000 } }, /* uV */
+	[TBL_BATCMP]    = { .rt = {0,       140,      20    } }, /* mOhm */
+	[TBL_VCLAMP]    = { .rt = {0,       224000,   32000 } }, /* uV */
+	[TBL_BOOSTV]    = { .rt = {4550000, 5510000,  64000 } }, /* uV */
+	[TBL_SYSVMIN]   = { .rt = {3000000, 3700000,  100000} }, /* uV */
 
 	/* lookup tables */
-	[TBL_TREG] =	{ .lt = {bq25895_treg_tbl, BQ25895_TREG_TBL_SIZE} },
-	[TBL_BOOSTI] =	{ .lt = {bq25895_boosti_tbl, BQ25895_BOOSTI_TBL_SIZE} }
+	[TBL_TREG] =	{ .lt = {bq25895_treg_tbl, BQ25895_TREG_TBL_SIZE} }
 };
 
 static int bq25895_field_read(struct bq25895_device *bq,
@@ -485,7 +479,7 @@ static int bq25895_get_chip_state(struct bq25895_device *bq,
 		*state_fields[i].data = ret;
 	}
 
-	dev_dbg(bq->dev, "S:CHG/PG/VSYS=%d/%d/%d, F:CHG/BOOST/BAT=%d/%d/%d\n",
+	dev_warn(bq->dev, "S:CHG/PG/VSYS=%d/%d/%d, F:CHG/BOOST/BAT=%d/%d/%d\n",
 		state->chrg_status, state->online, state->vsys_status,
 		state->chrg_fault, state->boost_fault, state->bat_fault);
 
@@ -595,13 +589,15 @@ static int bq25895_hw_init(struct bq25895_device *bq)
 		enum bq25895_fields id;
 		u32 value;
 	} init_data[] = {
+		{F_FORCE_VINDPM, bq->init_data.vindpm_force_abs},
+		{F_VINDPM,	 bq->init_data.vindpm},
+		{F_VINDPM_OS,	 bq->init_data.vindpm_os},
 		{F_ICHG,	 bq->init_data.ichg},
 		{F_VREG,	 bq->init_data.vreg},
 		{F_ITERM,	 bq->init_data.iterm},
 		{F_IPRECHG,	 bq->init_data.iprechg},
 		{F_SYSVMIN,	 bq->init_data.sysvmin},
 		{F_BOOSTV,	 bq->init_data.boostv},
-		{F_BOOSTI,	 bq->init_data.boosti},
 		{F_BOOSTF,	 bq->init_data.boostf},
 		{F_EN_ILIM,	 bq->init_data.ilim_en},
 		{F_TREG,	 bq->init_data.treg}
@@ -748,17 +744,20 @@ static int bq25895_fw_read_u32_props(struct bq25895_device *bq)
 		{"ti,charge-current", false, TBL_ICHG, &init->ichg},
 		{"ti,battery-regulation-voltage", false, TBL_VREG, &init->vreg},
 		{"ti,termination-current", false, TBL_ITERM, &init->iterm},
-		{"ti,precharge-current", false, TBL_ITERM, &init->iprechg},
+		{"ti,precharge-current", false, TBL_IPRECHG, &init->iprechg},
 		{"ti,minimum-sys-voltage", false, TBL_SYSVMIN, &init->sysvmin},
 		{"ti,boost-voltage", false, TBL_BOOSTV, &init->boostv},
-		{"ti,boost-max-current", false, TBL_BOOSTI, &init->boosti},
 
 		/* optional properties */
-		{"ti,thermal-regulation-threshold", true, TBL_TREG, &init->treg}
+		{"ti,thermal-regulation-threshold", true, TBL_TREG, &init->treg},
+		{"ti,input-voltage-limit-threshold-absolute", true, TBL_VINDPM, &init->vindpm},
+		{"ti,input-voltage-limit-threshold-relative", true, TBL_VINDPM_OS, &init->vindpm_os},
 	};
 
 	/* initialize data for optional properties */
 	init->treg = 3; /* 120 degrees Celsius */
+	init->vindpm = 18; /* 4400 mV */
+	init->vindpm_os = 6; /* 600 mV */
 
 	for (i = 0; i < ARRAY_SIZE(props); i++) {
 		ret = device_property_read_u32(bq->dev, props[i].name,
@@ -786,6 +785,8 @@ static int bq25895_fw_probe(struct bq25895_device *bq)
 	if (ret < 0)
 		return ret;
 
+	init->vindpm_force_abs = device_property_read_bool(bq->dev,
+		"ti,force-input-voltage-limit-threshold-absolute");
 	init->ilim_en = device_property_read_bool(bq->dev, "ti,use-ilim-pin");
 	init->boostf = device_property_read_bool(bq->dev, "ti,boost-low-freq");
 
