@@ -479,7 +479,7 @@ static int bq25895_get_chip_state(struct bq25895_device *bq,
 		*state_fields[i].data = ret;
 	}
 
-	dev_warn(bq->dev, "S:CHG/PG/VSYS=%d/%d/%d, F:CHG/BOOST/BAT=%d/%d/%d\n",
+	dev_dbg(bq->dev, "S:CHG/PG/VSYS=%d/%d/%d, F:CHG/BOOST/BAT=%d/%d/%d\n",
 		state->chrg_status, state->online, state->vsys_status,
 		state->chrg_fault, state->boost_fault, state->bat_fault);
 
