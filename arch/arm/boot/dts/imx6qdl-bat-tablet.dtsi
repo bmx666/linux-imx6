@@ -172,7 +172,7 @@
 
 	pinctrl_i2c2_bq25895: i2c2-bq25895grp {
 		fsl,pins = <
-#define GPIRQ_BQ25895_STAT			<&gpio4 22 IRQ_TYPE_LEVEL_LOW>
+#define GPIRQ_BQ25895_STAT			<&gpio4 22 IRQ_TYPE_EDGE_BOTH>
 			MX6QDL_PAD_DISP0_DAT1__GPIO4_IO22	0x1b0b0
 		>;
 	};
