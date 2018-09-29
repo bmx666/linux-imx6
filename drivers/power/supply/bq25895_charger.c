@@ -879,7 +879,7 @@ static int bq25895_probe(struct i2c_client *client,
 
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq25895_irq_handler_thread,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					BQ25895_IRQ_PIN, bq);
 	if (ret)
 		goto irq_fail;
