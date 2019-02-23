@@ -45,6 +45,7 @@
 
 /* Command Send Interface */
 /* ST95HF_COMMAND_SEND CMD Ids */
+#define IDN_CMD			0x01
 #define ECHO_CMD			0x55
 #define WRITE_REGISTER_CMD		0x9
 #define PROTOCOL_SELECT_CMD		0x2
@@ -72,6 +73,7 @@
 #define ST95HF_TAILROOM_LEN		1
 
 /* Command Response interface */
+#define FIRMWARE_SIZE			13
 #define MAX_RESPONSE_BUFFER_SIZE	280
 #define ECHORESPONSE			0x55
 #define ST95HF_ERR_MASK			0xF
@@ -118,6 +120,7 @@ struct param_list {
  * features that are not yet implemented there, for example, WTX cmd handling.
  */
 enum st95hf_cmd_list {
+	CMD_IDN,
 	CMD_ECHO,
 	CMD_ISO14443A_CONFIG,
 	CMD_ISO14443A_DEMOGAIN,
@@ -130,6 +133,12 @@ enum st95hf_cmd_list {
 };
 
 static const struct cmd cmd_array[] = {
+	[CMD_IDN] = {
+		.cmd_len = 0x3,
+		.cmd_id = IDN_CMD,
+		.no_cmd_params = 0,
+		.req = SYNC,
+	},
 	[CMD_ECHO] = {
 		.cmd_len = 0x2,
 		.cmd_id = ECHO_CMD,
@@ -309,6 +318,34 @@ static int st95hf_send_recv_cmd(struct st95hf_context *st95context,
 			return -EIO;
 		}
 	}
+
+	return 0;
+}
+
+static int st95hf_firmware_command(struct st95hf_context *st95context)
+{
+	int result = 0;
+	unsigned char response[MAX_RESPONSE_BUFFER_SIZE];
+
+	result = st95hf_send_recv_cmd(st95context, CMD_IDN, 0, NULL, false);
+	if (result)
+		return result;
+
+	/* If control reached here, response can be taken */
+	result = st95hf_spi_recv_response(&st95context->spicontext, response);
+	if (result < 0) {
+		dev_err(&st95context->spicontext.spidev->dev,
+			"err: firmware response receieve error = 0x%x\n", result);
+		return result;
+	}
+
+	if (FIRMWARE_SIZE != (response[1] - 2)) {
+		dev_err(&st95context->spicontext.spidev->dev,
+			"err: firmware response invalid size %d\n", response[1] - 2);
+		return -EIO;
+	}
+
+	dev_info(&st95context->spicontext.spidev->dev, "CHIP ID: %.*s\n", FIRMWARE_SIZE, response + 2);
 
 	return 0;
 }
@@ -1171,6 +1208,13 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 	ret = st95hf_por_sequence(st95context);
 	if (ret) {
 		dev_err(&nfc_spi_dev->dev, "err: por seq failed for st95hf\n");
+		goto err_disable_regulator;
+	}
+
+	/* call ST95hf firmware info */
+	ret = st95hf_firmware_command(st95context);
+	if (ret) {
+		dev_err(&nfc_spi_dev->dev, "err: get fw failed for st95hf\n");
 		goto err_disable_regulator;
 	}
 
