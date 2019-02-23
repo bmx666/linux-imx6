@@ -463,19 +463,19 @@ static int st95hf_select_protocol(struct st95hf_context *stcontext, int type)
 static void st95hf_send_st95enable_negativepulse(struct st95hf_context *st95con)
 {
 	/* First make irq_in pin high */
-	gpio_set_value(st95con->enable_gpio, HIGH);
+	gpio_set_value_cansleep(st95con->enable_gpio, HIGH);
 
 	/* wait for 1 milisecond */
 	usleep_range(1000, 2000);
 
 	/* Make irq_in pin low */
-	gpio_set_value(st95con->enable_gpio, LOW);
+	gpio_set_value_cansleep(st95con->enable_gpio, LOW);
 
 	/* wait for minimum interrupt pulse to make st95 active */
 	usleep_range(1000, 2000);
 
 	/* At end make it high */
-	gpio_set_value(st95con->enable_gpio, HIGH);
+	gpio_set_value_cansleep(st95con->enable_gpio, HIGH);
 }
 
 /*
