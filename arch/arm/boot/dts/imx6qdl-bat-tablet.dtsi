@@ -69,6 +69,16 @@
 #define GP_REGULATOR_BACKLIGHT_LVDS		<&tca6424 13 GPIO_ACTIVE_HIGH>
 	};
 
+	pinctrl_cr95hf: cr95hfgrp {
+		fsl,pins = <
+#define GP_CR95HF_IRQ_IN	<&gpio6 17 GPIO_ACTIVE_LOW>
+			MX6QDL_PAD_SD3_DAT7__GPIO6_IO17		0x030b0
+#define GPIRQ_CR95HF_IRQ_OUT	<&gpio6 18 IRQ_TYPE_EDGE_FALLING>
+			MX6QDL_PAD_SD3_DAT6__GPIO6_IO18		0x1b0b0
+		>;
+#define GP_REGULATOR_CR95HF			<&tca6424 3 GPIO_ACTIVE_HIGH>
+	};
+
 	pinctrl_ecspi1: ecspi1grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D17__ECSPI1_MISO		0x100b1
@@ -76,6 +86,16 @@
 			MX6QDL_PAD_EIM_D16__ECSPI1_SCLK		0x000b1
 #define GP_ECSPI1_NOR_CS	<&gpio3 19 GPIO_ACTIVE_LOW>
 			MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x0b0b1
+		>;
+	};
+
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT16__ECSPI2_MOSI	0x100b1
+			MX6QDL_PAD_DISP0_DAT17__ECSPI2_MISO	0x100b1
+			MX6QDL_PAD_DISP0_DAT19__ECSPI2_SCLK	0x100b1
+#define GP_ECSPI2_NFC_CS	<&tca6424 22 GPIO_ACTIVE_HIGH>
+#define GP_ECSPI2_EINK_CS	<&tca6424 23 GPIO_ACTIVE_LOW>
 		>;
 	};
 
@@ -421,13 +441,6 @@
 	leds {
 		compatible = "gpio-leds";
 
-		pwr_nfc {
-			label = "pwr_nfc";
-			gpios = <&tca6424 3 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
-
 		pwr_pam8406dr {
 			label = "pwr_pam8406dr";
 			gpios = <&tca6424 10 GPIO_ACTIVE_HIGH>;
@@ -610,6 +623,22 @@
 				regulator-off-in-suspend;
 			};
 		};
+
+		reg_cr95hf: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "cr95hf_3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			gpio = GP_REGULATOR_CR95HF;
+			enable-active-high;
+			startup-delay-us = <100000>;
+			vin-supply = <&reg_3p3v>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
 	};
 
 	sound {
@@ -724,6 +753,25 @@
 			label = "splash";
 			reg = <0xC2000 0x13e000>;
 		};
+	};
+};
+
+&ecspi2 {
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = GP_ECSPI2_NFC_CS, GP_ECSPI2_EINK_CS;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	status = "okay";
+
+	cr95hf: cr95hf@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_cr95hf>;
+		compatible = "st,st95hf";
+		spi-max-frequency = <2000000>; /* datasheet: max. freq 2MHz */
+		reg = <0>;
+		enable-gpio = GP_CR95HF_IRQ_IN;
+		interrupts-extended = GPIRQ_CR95HF_IRQ_OUT;
+		st95hfvin-supply = <&reg_cr95hf>;
 	};
 };
 
@@ -995,7 +1043,7 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &uart2 {
