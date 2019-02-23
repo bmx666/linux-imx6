@@ -850,7 +850,7 @@ static void spi_imx_chip_select(struct spi_imx_data *spi_imx, int is_active,
 			if (set_direction)
 				gpio_direction_output(gpio, val);
 			else
-				gpio_set_value(gpio, val);
+				gpio_set_value_cansleep(gpio, val);
 		}
 	} else {
 		gpio = cs[chip_select];
@@ -861,7 +861,7 @@ static void spi_imx_chip_select(struct spi_imx_data *spi_imx, int is_active,
 		if (set_direction)
 			gpio_direction_output(gpio, val);
 		else
-			gpio_set_value(gpio, val);
+			gpio_set_value_cansleep(gpio, val);
 	}
 }
 
