@@ -69,16 +69,6 @@
 #define GP_REGULATOR_BACKLIGHT_LVDS		<&tca6424 13 GPIO_ACTIVE_HIGH>
 	};
 
-	pinctrl_cr95hf: cr95hfgrp {
-		fsl,pins = <
-#define GP_CR95HF_IRQ_IN	<&gpio6 17 GPIO_ACTIVE_LOW>
-			MX6QDL_PAD_SD3_DAT7__GPIO6_IO17		0x030b0
-#define GPIRQ_CR95HF_IRQ_OUT	<&gpio6 18 IRQ_TYPE_EDGE_FALLING>
-			MX6QDL_PAD_SD3_DAT6__GPIO6_IO18		0x1b0b0
-		>;
-#define GP_REGULATOR_CR95HF			<&tca6424 3 GPIO_ACTIVE_HIGH>
-	};
-
 	pinctrl_ecspi1: ecspi1grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D17__ECSPI1_MISO		0x100b1
@@ -94,9 +84,19 @@
 			MX6QDL_PAD_DISP0_DAT16__ECSPI2_MOSI	0x100b1
 			MX6QDL_PAD_DISP0_DAT17__ECSPI2_MISO	0x100b1
 			MX6QDL_PAD_DISP0_DAT19__ECSPI2_SCLK	0x100b1
+		>;
 #define GP_ECSPI2_NFC_CS	<&tca6424 22 GPIO_ACTIVE_HIGH>
 #define GP_ECSPI2_EINK_CS	<&tca6424 23 GPIO_ACTIVE_LOW>
+	};
+
+	pinctrl_ecspi2_cr95hf: ecspi2_cr95hfgrp {
+		fsl,pins = <
+#define GP_CR95HF_IRQ_IN	<&gpio6 17 GPIO_ACTIVE_LOW>
+			MX6QDL_PAD_SD3_DAT7__GPIO6_IO17		0x030b0
+#define GPIRQ_CR95HF_IRQ_OUT	<&gpio6 18 IRQ_TYPE_EDGE_FALLING>
+			MX6QDL_PAD_SD3_DAT6__GPIO6_IO18		0x1b0b0
 		>;
+#define GP_REGULATOR_CR95HF			<&tca6424 3 GPIO_ACTIVE_HIGH>
 	};
 
 	pinctrl_enet: enetgrp {
@@ -765,7 +765,7 @@
 
 	cr95hf: cr95hf@0 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_cr95hf>;
+		pinctrl-0 = <&pinctrl_ecspi2_cr95hf>;
 		compatible = "st,st95hf";
 		spi-max-frequency = <2000000>; /* datasheet: max. freq 2MHz */
 		reg = <0>;
