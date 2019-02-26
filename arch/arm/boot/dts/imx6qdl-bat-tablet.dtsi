@@ -63,8 +63,6 @@
 	};
 
 	pinctrl_backlight_lvds: backlight-lvdsgrp {
-		fsl,pins = <
-		>;
 #define GP_BACKLIGHT_LVDS_ENABLE		<&tca6424 6 GPIO_ACTIVE_HIGH>
 #define GP_REGULATOR_BACKLIGHT_LVDS		<&tca6424 13 GPIO_ACTIVE_HIGH>
 	};
@@ -85,8 +83,8 @@
 			MX6QDL_PAD_DISP0_DAT17__ECSPI2_MISO	0x100b1
 			MX6QDL_PAD_DISP0_DAT19__ECSPI2_SCLK	0x100b1
 		>;
-#define GP_ECSPI2_NFC_CS	<&tca6424 22 GPIO_ACTIVE_HIGH>
-#define GP_ECSPI2_EINK_CS	<&tca6424 23 GPIO_ACTIVE_LOW>
+#define GP_ECSPI2_NFC_CS		<&tca6424 22 GPIO_ACTIVE_HIGH>
+#define GP_ECSPI2_WAVESHARE_EPD_CS	<&tca6424 23 GPIO_ACTIVE_LOW>
 	};
 
 	pinctrl_ecspi2_cr95hf: ecspi2_cr95hfgrp {
@@ -96,7 +94,13 @@
 #define GPIRQ_CR95HF_IRQ_OUT	<&gpio6 18 IRQ_TYPE_EDGE_FALLING>
 			MX6QDL_PAD_SD3_DAT6__GPIO6_IO18		0x1b0b0
 		>;
-#define GP_REGULATOR_CR95HF			<&tca6424 3 GPIO_ACTIVE_HIGH>
+#define GP_REGULATOR_CR95HF		<&tca6424 3 GPIO_ACTIVE_HIGH>
+	};
+
+	pinctrl_ecspi2_waveshare_epd: ecspi2_waveshare_epdgrp {
+#define GPIRQ_WAVESHARE_EPD_BUSY	<&tca6424 19 IRQ_TYPE_EDGE_FALLING>
+#define GP_WAVESHARE_EPD_RESET		<&tca6424 20 GPIO_ACTIVE_LOW>
+#define GP_WAVESHARE_EPD_DC		<&tca6424 21 GPIO_ACTIVE_LOW>
 	};
 
 	pinctrl_enet: enetgrp {
@@ -186,13 +190,13 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_0__CCM_CLKO1		0x000b0		/* sys_mclk */
 		>;
-#define GP_REGULATOR_ADAU1761 <&tca6424 9 GPIO_ACTIVE_HIGH>
-#define GP_ADAU1761_HP_DETECT <&tca6424 5 GPIO_ACTIVE_HIGH>
+#define GP_REGULATOR_ADAU1761		<&tca6424 9 GPIO_ACTIVE_HIGH>
+#define GP_ADAU1761_HP_DETECT		<&tca6424 5 GPIO_ACTIVE_HIGH>
 	};
 
 	pinctrl_i2c2_bq25895: i2c2-bq25895grp {
 		fsl,pins = <
-#define GPIRQ_BQ25895_STAT			<&gpio4 22 IRQ_TYPE_EDGE_BOTH>
+#define GPIRQ_BQ25895_STAT		<&gpio4 22 IRQ_TYPE_EDGE_BOTH>
 			MX6QDL_PAD_DISP0_DAT1__GPIO4_IO22	0x1b0b0
 		>;
 	};
@@ -214,11 +218,9 @@
 	};
 
 	pinctrl_i2c2_lis331dlh: i2c2-lis331dlhgrp {
-		fsl,pins = <
-		>;
 #define GP_REGULATOR_LIS331DLH		<&tca6424 11 GPIO_ACTIVE_HIGH>
-#define GP_LIS331DLH_INT1			<&tca6424 0 GPIO_ACTIVE_HIGH>
-#define GP_LIS331DLH_INT2			<&tca6424 1 GPIO_ACTIVE_HIGH>
+#define GP_LIS331DLH_INT1		<&tca6424 0 GPIO_ACTIVE_HIGH>
+#define GP_LIS331DLH_INT2		<&tca6424 1 GPIO_ACTIVE_HIGH>
 	};
 
 	pinctrl_i2c3: i2c3grp {
@@ -248,9 +250,7 @@
 	};
 
 	pinctrl_ldb: ldbgrp {
-		fsl,pins = <
-		>;
-#define GP_LDB_ENABLE		<&tca6424 7 GPIO_ACTIVE_HIGH>
+#define GP_LDB_ENABLE			<&tca6424 7 GPIO_ACTIVE_HIGH>
 	};
 
 	pinctrl_poweroff: poweroffgrp {
@@ -758,7 +758,7 @@
 
 &ecspi2 {
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = GP_ECSPI2_NFC_CS, GP_ECSPI2_EINK_CS;
+	cs-gpios = GP_ECSPI2_NFC_CS, GP_ECSPI2_WAVESHARE_EPD_CS;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
@@ -772,6 +772,12 @@
 		enable-gpio = GP_CR95HF_IRQ_IN;
 		interrupts-extended = GPIRQ_CR95HF_IRQ_OUT;
 		st95hfvin-supply = <&reg_cr95hf>;
+	};
+
+	spidev@1 {
+		compatible = "spidev";
+		spi-max-frequency = <2000000>; /* datasheet: max. freq 2MHz */
+		reg = <1>;
 	};
 };
 
